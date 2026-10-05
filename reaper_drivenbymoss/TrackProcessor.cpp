@@ -3,6 +3,9 @@
 
 #include <cstring>
 #include <sstream>
+#include <string>
+#include <vector>
+#include <climits>
 
 #include "CodeAnalysis.h"
 #include "TrackProcessor.h"
@@ -11,6 +14,13 @@
 #include "ReaDebug.h"
 #include "StringUtils.h"
 #include "DrivenByMossSurface.h"
+
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
+// [tmx mod] Set to false to silence the mixer-scroll decision log in the REAPER console
+static const bool MIXER_SCROLL_LOG = true;
 
 extern DrivenByMossSurface* surfaceInstance;
 
@@ -193,7 +203,8 @@ void TrackProcessor::Process(std::deque<std::string>& path, int value)
 	if (std::strcmp(cmd, "select") == 0)
 	{
 		SetOnlyTrackSelected(track);
-		ScrollTrackIntoView(track);
+		// [tmx mod] Only scroll the mixer if the track is not already fully visible
+		ScrollTrackIntoViewIfHidden(track);
 		const int deviceCount = TrackFX_GetCount(track);
 		if (this->model.deviceSelected >= deviceCount)
 			this->model.deviceSelected = 0;
@@ -206,7 +217,8 @@ void TrackProcessor::Process(std::deque<std::string>& path, int value)
 		SetTrackSelected(track, isSelected);
 		if (isSelected)
 		{
-			ScrollTrackIntoView(track);
+			// [tmx mod] Only scroll the mixer if the track is not already fully visible
+			ScrollTrackIntoViewIfHidden(track);
 			const int deviceCount = TrackFX_GetCount(track);
 			if (this->model.deviceSelected >= deviceCount)
 				this->model.deviceSelected = 0;
@@ -721,4 +733,165 @@ void TrackProcessor::ScrollTrackIntoView(MediaTrack* leftmosttrack) noexcept
 	SetMixerScroll(leftmosttrack);
 	ReaProject* project = ReaperUtils::GetProject();
 	Main_OnCommandEx(VERTICAL_SCROLL_TRACK_INTO_VIEW, 0, project);
+}
+
+
+// ---------------------------------------------------------------------------------------------
+// [tmx mod] Scroll the mixer only when the selected track is not fully visible
+// ---------------------------------------------------------------------------------------------
+
+#ifdef _WIN32
+namespace
+{
+	struct McpWindowSearch
+	{
+		DWORD processID{ 0 };
+		std::vector<HWND> windows;
+	};
+
+	BOOL CALLBACK CheckForMcpWindow(HWND hwnd, LPARAM lParam)
+	{
+		McpWindowSearch* search = reinterpret_cast<McpWindowSearch*>(lParam);
+		char className[128] = { 0 };
+		GetClassNameA(hwnd, className, sizeof(className) - 1);
+		if (std::strcmp(className, "REAPERMCPDisplay") == 0 && IsWindowVisible(hwnd))
+			search->windows.push_back(hwnd);
+		return TRUE;
+	}
+
+	BOOL CALLBACK CheckTopLevelWindow(HWND hwnd, LPARAM lParam)
+	{
+		McpWindowSearch* search = reinterpret_cast<McpWindowSearch*>(lParam);
+		DWORD pid = 0;
+		GetWindowThreadProcessId(hwnd, &pid);
+		if (pid == search->processID)
+		{
+			CheckForMcpWindow(hwnd, lParam);
+			// Enumerates all descendants (docked mixer lives deep inside the main window)
+			EnumChildWindows(hwnd, CheckForMcpWindow, lParam);
+		}
+		return TRUE;
+	}
+}
+#endif
+
+
+/**
+ * Check if a track is fully visible in the mixer.
+ *
+ * @param track The track to check
+ * @param info Receives a short description of what was found (for the log)
+ * @return 1 if fully visible, 0 if (partly) hidden, 2 if the track is not shown in the mixer at all,
+ *         -1 if it could not be determined
+ */
+int TrackProcessor::IsTrackFullyVisibleInMixer(MediaTrack* track, std::string& info) noexcept
+{
+#ifdef _WIN32
+	if (GetMediaTrackInfo_Value(track, "B_SHOWINMIXER") == 0)
+	{
+		info = "track is hidden from the mixer";
+		return 2;
+	}
+
+	const int trackX = static_cast<int>(GetMediaTrackInfo_Value(track, "I_MCPSCREENX"));
+	const int trackW = static_cast<int>(GetMediaTrackInfo_Value(track, "I_MCPW"));
+	if (trackW <= 0)
+	{
+		info = "track has no width in the mixer (mixer closed?)";
+		return -1;
+	}
+
+	McpWindowSearch search;
+	search.processID = GetCurrentProcessId();
+	EnumWindows(CheckTopLevelWindow, reinterpret_cast<LPARAM>(&search));
+	if (search.windows.empty())
+	{
+		info = "mixer window not found";
+		return -1;
+	}
+
+	// There can be more than one mixer display (e.g. a separate master area). Prefer the one
+	// which contains the leftmost visible track, otherwise use the widest one.
+	int leftmostX = INT_MIN;
+	MediaTrack* leftmost = GetMixerScroll();
+	if (leftmost != nullptr)
+		leftmostX = static_cast<int>(GetMediaTrackInfo_Value(leftmost, "I_MCPSCREENX"));
+
+	RECT best{ 0, 0, 0, 0 };
+	bool found = false;
+	for (HWND hwnd : search.windows)
+	{
+		RECT rect{};
+		GetClientRect(hwnd, &rect);
+		POINT topLeft{ rect.left, rect.top };
+		POINT bottomRight{ rect.right, rect.bottom };
+		ClientToScreen(hwnd, &topLeft);
+		ClientToScreen(hwnd, &bottomRight);
+		const RECT screenRect{ topLeft.x, topLeft.y, bottomRight.x, bottomRight.y };
+		const bool containsLeftmost = leftmostX != INT_MIN && leftmostX >= screenRect.left && leftmostX < screenRect.right;
+		if (containsLeftmost)
+		{
+			best = screenRect;
+			found = true;
+			break;
+		}
+		if (!found || (screenRect.right - screenRect.left) > (best.right - best.left))
+		{
+			best = screenRect;
+			found = true;
+		}
+	}
+
+	std::ostringstream ss;
+	ss << "strip x=" << trackX << ".." << (trackX + trackW) << ", mixer area x=" << best.left << ".." << best.right << " (" << search.windows.size() << " display(s))";
+	info = ss.str();
+
+	// Allow 1 pixel of rounding slack on either side
+	const bool visible = trackX >= best.left - 1 && trackX + trackW <= best.right + 1;
+	return visible ? 1 : 0;
+#else
+	info = "visibility check only implemented on Windows";
+	return -1;
+#endif
+}
+
+
+/**
+ * Select-scroll replacement: scrolls the arrange view vertically as before, but only scrolls the
+ * mixer if the track is not already fully visible. If it is hidden (or visibility cannot be
+ * determined) the original behaviour is used: the track becomes the leftmost one in the mixer.
+ *
+ * @param track The selected track
+ */
+void TrackProcessor::ScrollTrackIntoViewIfHidden(MediaTrack* track) noexcept
+{
+	ReaProject* project = ReaperUtils::GetProject();
+	Main_OnCommandEx(VERTICAL_SCROLL_TRACK_INTO_VIEW, 0, project);
+
+	std::string info;
+	const int visibility = IsTrackFullyVisibleInMixer(track, info);
+
+	const char* decision;
+	if (visibility == 1)
+		decision = "visible -> no scroll";
+	else if (visibility == 2)
+		decision = "not in mixer -> no scroll";
+	else if (visibility == 0)
+	{
+		decision = "hidden -> snap to left edge";
+		SetMixerScroll(track);
+	}
+	else
+	{
+		decision = "unknown -> fallback, snap to left edge";
+		SetMixerScroll(track);
+	}
+
+	if (MIXER_SCROLL_LOG)
+	{
+		const int trackNumber = static_cast<int>(GetMediaTrackInfo_Value(track, "IP_TRACKNUMBER"));
+		std::ostringstream msg;
+		msg << "[DBM mixer] Track " << trackNumber << ": " << decision << "  (" << info << ")\n";
+		ShowConsoleMsg(msg.str().c_str());
+	}
 }
