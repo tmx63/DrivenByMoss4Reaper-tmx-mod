@@ -22,6 +22,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 
 /**
@@ -44,6 +46,8 @@ public class ApplicationImpl extends BaseImpl implements IApplication
     private int                    windowLayout  = 0;
     private boolean                canUndoState  = true;
     private boolean                canRedoState  = true;
+    // [tmx mod] Toggle states of actions requested via isActionActive (action ID -> on)
+    private final Map<String, Boolean> actionStates = new ConcurrentHashMap<> ();
     private final ZoomParameter    horizontalZoomParameter;
     private final ZoomParameter    verticalZoomParameter;
 
@@ -502,6 +506,36 @@ public class ApplicationImpl extends BaseImpl implements IApplication
     public void invokeAction (final String id)
     {
         this.sendOSC ("", id);
+    }
+
+
+    /** {@inheritDoc} */
+    @Override
+    public boolean isActionActive (final String id)
+    {
+        // [tmx mod] The first request registers the action with the backend, which then reports
+        // its toggle state whenever it changes
+        if (id == null || id.isBlank ())
+            return false;
+        final String actionID = id.trim ();
+        final Boolean state = this.actionStates.get (actionID);
+        if (state != null)
+            return state.booleanValue ();
+        this.actionStates.put (actionID, Boolean.FALSE);
+        this.sendOSC ("watch", actionID);
+        return false;
+    }
+
+
+    /**
+     * Set the toggle state of an action as reported by the backend.
+     *
+     * @param id The action identifier
+     * @param state The toggle state (1 = on, 0 = off, -1 = action has no toggle state)
+     */
+    public void setActionState (final String id, final int state)
+    {
+        this.actionStates.put (id, Boolean.valueOf (state > 0));
     }
 
 

@@ -205,6 +205,11 @@ public class AssignableCommand extends FootswitchCommand<MCUControlSurface, MCUC
             case MCUConfiguration.CONTROL_LAST_PARAM_MASTER_FADER:
                 return this.masterVolumeMode.isControlLastParamActive ();
 
+            // [tmx mod] Light the button if the assigned Reaper action is toggled on
+            case MCUConfiguration.FOOTSWITCH_ACTION:
+                final String assignableActionID = this.surface.getConfiguration ().getAssignableAction (this.index);
+                return assignableActionID != null && this.model.getApplication ().isActionActive (assignableActionID);
+
             case AbstractConfiguration.FOOTSWITCH_UNDO:
             case AbstractConfiguration.FOOTSWITCH_TAP_TEMPO:
             case AbstractConfiguration.FOOTSWITCH_NEW_BUTTON:

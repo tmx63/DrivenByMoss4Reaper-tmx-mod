@@ -1,6 +1,7 @@
 // Copyright (c) 2018-2026 by Jürgen Moßgraber (www.mossgrabers.de)
 // Licensed under LGPLv3 - http://www.gnu.org/licenses/lgpl-3.0.txt
 
+#include <cstring>
 #include <sstream>
 
 #include "WrapperGSL.h"
@@ -51,6 +52,17 @@ void ActionProcessor::Process(std::deque<std::string>& path, int value) noexcept
 /** {@inheritDoc} */
 void ActionProcessor::Process(std::deque<std::string>& path, const std::string& value) noexcept
 {
+	// [tmx mod] Java asks to report the toggle state of an action (e.g. for button LEDs)
+	if (std::strcmp(SafeGet(path, 0), "watch") == 0)
+	{
+		if (value.empty() || value.find('/') != std::string::npos)
+			return;
+		// (Re-)registering forces the current state to be sent again
+		if (this->watchedActions.size() < 256 || this->watchedActions.count(value) > 0)
+			this->watchedActions[value] = -2;
+		return;
+	}
+
 	int id = std::atoi(value.c_str());
 	if (id <= 0)
 		id = NamedCommandLookup(value.c_str());
@@ -65,6 +77,16 @@ void ActionProcessor::Process(std::deque<std::string>& path, const std::string& 
  */
 void ActionProcessor::CollectData(std::ostringstream& ss)
 {
+	// [tmx mod] Report changed toggle states of watched actions as /action/state/{id} {0|1|-1}
+	for (auto& entry : this->watchedActions)
+	{
+		int id = std::atoi(entry.first.c_str());
+		if (id <= 0)
+			id = NamedCommandLookup(entry.first.c_str());
+		const int state = id > 0 ? GetToggleCommandStateEx(0, id) : -1;
+		entry.second = Collectors::CollectIntValue(ss, "/action/state/" + entry.first, entry.second, state, false);
+	}
+
 	if (this->selectedAction <= 0)
 		return;
 	const char* cmd = ReverseNamedCommandLookup(this->selectedAction);

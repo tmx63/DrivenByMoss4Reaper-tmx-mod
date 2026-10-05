@@ -4,6 +4,9 @@
 #ifndef _DBM_ACTIONPROCESSOR_H_
 #define _DBM_ACTIONPROCESSOR_H_
 
+#include <map>
+#include <string>
+
 #include "OscProcessor.h"
 
 
@@ -29,6 +32,9 @@ public:
 private:
 	bool selectionIsActive;
 	int selectedAction;
+
+	// [tmx mod] Actions whose toggle state is reported to Java (action ID -> last sent state)
+	std::map<std::string, int> watchedActions;
 };
 
 #endif /* _DBM_ACTIONPROCESSOR_H_ */

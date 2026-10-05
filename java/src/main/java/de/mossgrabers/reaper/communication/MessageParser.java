@@ -230,6 +230,21 @@ public class MessageParser
                 this.parseGroove (parts, value);
                 break;
 
+            // [tmx mod] Toggle state of a watched action: /action/state/{id} {0|1|-1}
+            case "action":
+                if ("state".equals (parts.poll ()) && !parts.isEmpty ())
+                {
+                    try
+                    {
+                        this.application.setActionState (parts.poll (), (int) Double.parseDouble (value));
+                    }
+                    catch (final NumberFormatException ex)
+                    {
+                        this.host.error ("Bad action state: " + osc + " " + value);
+                    }
+                }
+                break;
+
             default:
                 this.host.error ("Unhandled OSC address: " + osc + " " + value);
                 return;

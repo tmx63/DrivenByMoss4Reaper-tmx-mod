@@ -310,6 +310,18 @@ public interface IApplication extends IObserverManagement
 
 
     /**
+     * Get the toggle (on/off) state of an action. Not supported by all hosts.
+     *
+     * @param id the action identifier string
+     * @return True if the action reports an 'on' toggle state
+     */
+    default boolean isActionActive (final String id)
+    {
+        return false;
+    }
+
+
+    /**
      * Shows help, e.g. the manual.
      */
     void showHelp ();
