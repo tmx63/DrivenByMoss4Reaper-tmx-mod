@@ -810,15 +810,23 @@ int TrackProcessor::IsTrackFullyVisibleInMixer(MediaTrack* track, std::string& i
 		return -1;
 	}
 
-	// There can be more than one mixer display (e.g. a separate master area). Prefer the one
-	// which contains the leftmost visible track, otherwise use the widest one.
-	int leftmostX = INT_MIN;
-	MediaTrack* leftmost = GetMixerScroll();
-	if (leftmost != nullptr)
-		leftmostX = static_cast<int>(GetMediaTrackInfo_Value(leftmost, "I_MCPSCREENX"));
+	// There can be more than one mixer display: the master strip has its own area next to the
+	// track area. Scrolled-off tracks report screen positions "behind" the master area, so the
+	// master area must be excluded. Identify it by the master strip's position, then use the
+	// widest remaining display.
+	int masterX = INT_MIN;
+	int masterW = 0;
+	MediaTrack* master = GetMasterTrack(ReaperUtils::GetProject());
+	if (master != nullptr)
+	{
+		masterW = static_cast<int>(GetMediaTrackInfo_Value(master, "I_MCPW"));
+		if (masterW > 0)
+			masterX = static_cast<int>(GetMediaTrackInfo_Value(master, "I_MCPSCREENX"));
+	}
 
 	RECT best{ 0, 0, 0, 0 };
 	bool found = false;
+	int skipped = 0;
 	for (HWND hwnd : search.windows)
 	{
 		RECT rect{};
@@ -828,13 +836,15 @@ int TrackProcessor::IsTrackFullyVisibleInMixer(MediaTrack* track, std::string& i
 		ClientToScreen(hwnd, &topLeft);
 		ClientToScreen(hwnd, &bottomRight);
 		const RECT screenRect{ topLeft.x, topLeft.y, bottomRight.x, bottomRight.y };
-		const bool containsLeftmost = leftmostX != INT_MIN && leftmostX >= screenRect.left && leftmostX < screenRect.right;
-		if (containsLeftmost)
+
+		// Skip the display which holds the master strip (only if there is another one to use)
+		const bool holdsMaster = masterX != INT_MIN && masterX >= screenRect.left - 1 && masterX + masterW <= screenRect.right + 1;
+		if (holdsMaster && search.windows.size() > 1)
 		{
-			best = screenRect;
-			found = true;
-			break;
+			skipped++;
+			continue;
 		}
+
 		if (!found || (screenRect.right - screenRect.left) > (best.right - best.left))
 		{
 			best = screenRect;
@@ -842,8 +852,14 @@ int TrackProcessor::IsTrackFullyVisibleInMixer(MediaTrack* track, std::string& i
 		}
 	}
 
+	if (!found)
+	{
+		info = "only the master display was found";
+		return -1;
+	}
+
 	std::ostringstream ss;
-	ss << "strip x=" << trackX << ".." << (trackX + trackW) << ", mixer area x=" << best.left << ".." << best.right << " (" << search.windows.size() << " display(s))";
+	ss << "strip x=" << trackX << ".." << (trackX + trackW) << ", mixer area x=" << best.left << ".." << best.right << " (" << search.windows.size() << " display(s), master area skipped: " << skipped << ")";
 	info = ss.str();
 
 	// Allow 1 pixel of rounding slack on either side
