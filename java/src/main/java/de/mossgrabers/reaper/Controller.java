@@ -1,0 +1,182 @@
+// Written by Jürgen Moßgraber - mossgrabers.de
+// (c) 2017-2026
+// Licensed under LGPLv3 - http://www.gnu.org/licenses/lgpl-3.0.txt
+
+package de.mossgrabers.reaper;
+
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+
+/**
+ * Interface to be used from C++ code to control the application.
+ *
+ * @author Jürgen Moßgraber
+ */
+public class Controller
+{
+    private static final Pattern VERSION_PATTERN = Pattern.compile ("(\\d+)\\.(\\d+)");
+
+    private static MainApp       app;
+
+
+    /**
+     * Private due to the fact that it only provides static functions.
+     */
+    private Controller ()
+    {
+        // Intentionally empty
+    }
+
+
+    /**
+     * Startup the application window.
+     *
+     * @param iniPath Folder where the Reaper INI files are stored
+     * @param appVersion The Reaper version
+     */
+    public static void startup (final String iniPath, final String appVersion)
+    {
+        final Matcher m = VERSION_PATTERN.matcher (appVersion);
+        int majorVersion = 1;
+        int minorVersion = 0;
+        if (m.find ())
+        {
+            majorVersion = Integer.parseInt (m.group (1));
+            minorVersion = Integer.parseInt (m.group (2));
+        }
+
+        app = new MainApp (iniPath, majorVersion, minorVersion);
+    }
+
+
+    /**
+     * Add an available device.
+     *
+     * @param name The name of the device
+     * @param identifier The ID of the device (can be the DLL path)
+     */
+    public static void addDevice (final String name, final String identifier)
+    {
+        if (app != null)
+            app.addDevice (name, identifier);
+    }
+
+
+    /**
+     * Startup the infrastructure and controller instances.
+     */
+    public static void startInfrastructure ()
+    {
+        if (app != null)
+            app.startupInfrastructure ();
+    }
+
+
+    /**
+     * Update the data model.
+     *
+     * @param data The data to update the model with
+     */
+    public static void updateModel (final String data)
+    {
+        if (app != null)
+            app.updateModel (data);
+    }
+
+
+    /**
+     * Shutdown the application.
+     */
+    public static void shutdown ()
+    {
+        if (app != null)
+            app.exit ();
+    }
+
+
+    /**
+     * Displays the application window.
+     */
+    public static void displayWindow ()
+    {
+        if (app != null)
+            app.showStage ();
+    }
+
+
+    /**
+     * Displays the project settings window.
+     */
+    public static void displayProjectWindow ()
+    {
+        if (app != null)
+            app.showProjectWindow ();
+    }
+
+
+    /**
+     * Displays the parameter mapping window.
+     */
+    public static void displayParameterWindow ()
+    {
+        if (app != null)
+            app.showParameterWindow ();
+    }
+
+
+    /**
+     * Restart all configured controllers.
+     */
+    public static void restartControllers ()
+    {
+        if (app != null)
+            app.restartControllers ();
+    }
+
+
+    /**
+     * Set the default initial settings for the document/project.
+     */
+    public static void setDefaultDocumentSettings ()
+    {
+        if (app != null)
+            app.setDefaultDocumentSettings ();
+    }
+
+
+    /**
+     * Get the formatted document settings formatted to be stored in the Reaper extension data
+     *
+     * @return The formatted document settings
+     */
+    public static String getFormattedDocumentSettings ()
+    {
+        return app == null ? "" : app.getFormattedDocumentSettings ();
+    }
+
+
+    /**
+     * Set the formatted document settings formatted from the the Reaper extension data
+     *
+     * @param data The formatted document settings
+     */
+    public static void setFormattedDocumentSettings (final String data)
+    {
+        if (app != null)
+            app.setFormattedDocumentSettings (data);
+    }
+
+
+    /**
+     * Handle a MIDI message.
+     *
+     * @param deviceID The device (MIDI input port) which received the message
+     * @param message The MIDI message
+     */
+    public static void onMIDIEvent (final int deviceID, final byte [] message)
+    {
+        if (app != null)
+            app.onMIDIMessage (deviceID, message);
+    }
+}

@@ -1,0 +1,224 @@
+plugins {
+    id 'com.github.jk1.dependency-license-report' version '3.1.4'
+    id 'com.github.ben-manes.versions' version '0.61.0'
+    id 'java'
+    id 'application'
+    id 'eclipse'
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+version = '26.6.5'
+
+jar {
+    manifest {
+        attributes(
+            'Implementation-Title': 'DrivenByMoss4Reaper',
+            'Implementation-Version': archiveVersion,
+            'Implementation-Vendor': 'Juergen Mossgraber'
+        )
+    }
+
+    doLast {
+        switch (OperatingSystem.get()) {
+            case OperatingSystem.WINDOWS:
+                String destDir = 'C:\\Users\\' + System.properties['user.name'] + '\\AppData\\Roaming\\Reaper\\UserPlugins\\drivenbymoss-libs'
+                ant.copy (file: archiveFile.get().getAsFile().getAbsolutePath(), todir: destDir)
+                break
+            case OperatingSystem.MAC:
+                String destDir = '/Users/' + System.properties['user.name'] + '/Library/Application Support/REAPER/UserPlugins/drivenbymoss-libs'
+                ant.copy (file: archiveFile.get().getAsFile().getAbsolutePath(), todir: destDir)
+                break
+            case OperatingSystem.LINUX:
+                String destDir = '/home/' + System.properties['user.name'] + '/.config/REAPER/UserPlugins/drivenbymoss-libs'
+                ant.copy (file: archiveFile.get().getAsFile().getAbsolutePath(), todir: destDir)
+                break
+        }
+    }
+}
+
+distTar.enabled = false
+startScripts.enabled = false
+
+application {
+    applicationDistribution.from('build/reports/dependency-license') {
+        into 'docs/license/dependency'
+    }
+}
+
+installDist {
+    dependsOn tasks.generateLicenseReport
+    doLast {
+        // Collect and move JAR files
+        File javaLibsDir = new File (destinationDir, 'drivenbymoss-libs')
+        javaLibsDir.mkdirs ()
+        File sourceDir = new File (destinationDir, '/lib')
+        ant.delete () {
+            fileset(dir: sourceDir) {
+                include(name: 'purejavahidapi-*-javadoc.jar')
+                include(name: 'purejavahidapi-*-sources.jar')
+                include(name: 'libusb4java-*.jar')
+                include(name: 'slf4j-log4j*.jar')
+                include(name: 'log4j-*.jar')
+            }
+        }
+        ant.move (todir: javaLibsDir) {
+            fileset(dir: sourceDir) {
+                include(name: '**.jar')
+            }
+        }
+        sourceDir.delete()
+
+        // Copy resources
+        File resourcesDir = new File (destinationDir, 'resources')
+        resourcesDir.mkdirs ()
+        ant.copy (todir: resourcesDir) {
+            fileset(dir: new File ('resources')) {
+                include(name: '**')
+            }
+        }
+
+        String name = 'build/DrivenByMoss4Reaper-' + version
+
+        // Windows - Intel
+        ant.zip (destfile: name + '-Windows.zip') {            
+            fileset(dir: destinationDir)
+            zipfileset(prefix: 'drivenbymoss-libs', dir: new File ('libs', 'libusb4java')) {
+                include(name: '**/libusb4java-*-win32-x86-64.jar')
+            }
+            fileset(dir: new File ('runtime', 'windows'))
+        }
+
+        // Windows - ARM
+        ant.zip (destfile: name + '-Windows-ARM.zip') {            
+            fileset(dir: destinationDir)
+            zipfileset(prefix: 'drivenbymoss-libs', dir: new File ('libs', 'libusb4java')) {
+                include(name: '**/libusb4java-*-win32-arm-64.jar')
+            }
+            fileset(dir: new File ('runtime', 'windows-arm'))
+        }
+
+        // Mac - Intel
+        String macosTar = name + '-Macos-x86.tar.gz'
+        ant.tar (destfile: macosTar, compression: 'gzip') {
+            tarfileset(dir: destinationDir)
+            tarfileset(prefix: 'drivenbymoss-libs', dir: new File ('libs', 'libusb4java')) {
+                include(name: '**/libusb4java-*-darwin.jar')
+            }
+            tarfileset(dir: new File ('runtime', 'macos'), filemode: 664) {
+                exclude(name: '**/bin/java')
+                exclude(name: '**/bin/keytool')
+                exclude(name: '**/lib/jspawnhelper')
+            }
+            tarfileset(dir: new File ('runtime', 'macos'), filemode: 775) {
+                include(name: '**/bin/java')
+                include(name: '**/bin/keytool')
+                include(name: '**/lib/jspawnhelper')
+            }
+        }
+
+        // Mac - ARM
+        String macosArmTar = name + '-Macos-ARM.tar.gz'
+        ant.tar (destfile: macosArmTar, compression: 'gzip') {
+            tarfileset(dir: destinationDir)
+            tarfileset(prefix: 'drivenbymoss-libs', dir: new File ('libs', 'libusb4java')) {
+                include(name: '**/libusb4java-*-darwin.jar')
+            }
+            tarfileset(dir: new File ('runtime', 'macos-arm'), filemode: 664) {
+                exclude(name: '**/bin/java')
+                exclude(name: '**/bin/keytool')
+                exclude(name: '**/lib/jspawnhelper')
+            }
+            tarfileset(dir: new File ('runtime', 'macos-arm'), filemode: 775) {
+                include(name: '**/bin/java')
+                include(name: '**/bin/keytool')
+                include(name: '**/lib/jspawnhelper')
+            }
+        }
+
+        // Linux
+        String linuxTar = name + '-Linux.tar.gz'
+        ant.tar (destfile: linuxTar, compression: 'gzip') {
+            tarfileset(dir: destinationDir)
+            tarfileset(prefix: 'drivenbymoss-libs', dir: new File ('libs', 'libusb4java')) {
+                include(name: '**/libusb4java-*-linux-x86-64.jar')
+            }
+            tarfileset(dir: new File ('runtime', 'linux'), filemode: 664) {
+                exclude(name: '**/bin/java')
+                exclude(name: '**/bin/keytool')
+                exclude(name: '**/lib/jexec')
+                exclude(name: '**/lib/jspawnhelper')
+            }
+            tarfileset(dir: new File ('runtime', 'linux'), filemode: 775) {
+                include(name: '**/bin/java')
+                include(name: '**/bin/keytool')
+                include(name: '**/lib/jexec')
+                include(name: '**/lib/jspawnhelper')
+            }
+        }
+    }
+}
+
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+    options.compilerArgs << '-Xlint:unchecked' << '-Xlint:deprecation'
+    options.headerOutputDirectory = file('build/headers/java/main')
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation group: 'org.usb4java', name: 'usb4java', version: '1.3.0'
+    implementation group: 'com.illposed.osc', name: 'javaosc-core', version: '0.9'
+    implementation group: 'com.nikhaldimann', name: 'inieditor', version: 'r6'
+    implementation group: 'net.java.dev.jna', name: 'jna', version: '5.19.1'
+    implementation group: 'net.java.dev.jna', name: 'jna-platform', version: '5.19.1'
+    implementation group: 'com.badlogicgames.jamepad', name: 'jamepad', version: '2.30.0.0'
+    implementation group: 'com.weblookandfeel', name: 'svg-salamander', version: '1.1.2.2'
+    implementation group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.22.2'
+    implementation fileTree(dir: 'libs', include: '**/*.jar')
+}
+
+// Necessary to remove xml-api dependency introduced by Batik from Eclipse (it is already part of Java 11)
+eclipse.classpath.file {
+    whenMerged { classpath ->
+        classpath.entries.removeAll { entry -> entry.kind == 'lib' && entry.moduleVersion?.group == 'xml-apis' && entry.moduleVersion?.name == 'xml-apis' }
+    }
+}
+
+enum OperatingSystem {
+
+    WINDOWS,
+    LINUX,
+    MAC,
+    OTHER
+
+    private static OperatingSystem os = OTHER
+
+    static
+    {
+        String osName = System.getProperty ('os.name')
+        if (osName != null) {
+            osName = osName.toLowerCase (Locale.ENGLISH)
+            if (osName.contains ('windows')) {
+                os = WINDOWS
+            }
+            else if (osName.contains ('linux')) {
+                os = LINUX
+            }
+            else if (osName.contains ('mac os x')) {
+                os = MAC
+            }
+        }
+    }
+
+    static OperatingSystem get () {
+        return os
+    }
+
+}

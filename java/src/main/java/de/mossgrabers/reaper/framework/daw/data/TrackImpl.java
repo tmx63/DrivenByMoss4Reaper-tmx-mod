@@ -1,0 +1,565 @@
+// Written by Jürgen Moßgraber - mossgrabers.de
+// (c) 2017-2026
+// Licensed under LGPLv3 - http://www.gnu.org/licenses/lgpl-3.0.txt
+
+package de.mossgrabers.reaper.framework.daw.data;
+
+import de.mossgrabers.framework.daw.constants.RecordQuantization;
+import de.mossgrabers.framework.daw.data.ITrack;
+import de.mossgrabers.framework.daw.data.bank.IParameterBank;
+import de.mossgrabers.framework.daw.data.bank.ISlotBank;
+import de.mossgrabers.framework.daw.resource.ChannelType;
+import de.mossgrabers.framework.parameter.IParameter;
+import de.mossgrabers.reaper.communication.Processor;
+import de.mossgrabers.reaper.framework.daw.DataSetupEx;
+import de.mossgrabers.reaper.framework.daw.data.bank.AbstractTrackBankImpl;
+import de.mossgrabers.reaper.framework.daw.data.bank.ParameterBankImpl;
+import de.mossgrabers.reaper.framework.daw.data.bank.SceneBankImpl;
+import de.mossgrabers.reaper.framework.daw.data.bank.SlotBankImpl;
+import de.mossgrabers.reaper.framework.daw.data.bank.TrackBankImpl;
+import de.mossgrabers.reaper.framework.daw.data.parameter.ParameterImpl;
+
+import java.util.EnumMap;
+import java.util.Map;
+
+
+/**
+ * The data of a track.
+ *
+ * @author Jürgen Moßgraber
+ */
+public class TrackImpl extends ChannelImpl implements ITrack
+{
+    private static final Map<RecordQuantization, Double> QUANT_MAP = new EnumMap<> (RecordQuantization.class);
+    static
+    {
+        QUANT_MAP.put (RecordQuantization.RES_OFF, Double.valueOf (0));
+        QUANT_MAP.put (RecordQuantization.RES_1_32, Double.valueOf (0.125));
+        QUANT_MAP.put (RecordQuantization.RES_1_16, Double.valueOf (0.25));
+        QUANT_MAP.put (RecordQuantization.RES_1_8, Double.valueOf (0.5));
+        QUANT_MAP.put (RecordQuantization.RES_1_4, Double.valueOf (1));
+    }
+
+    protected final AbstractTrackBankImpl trackBank;
+
+    private boolean                       isGroupExpanded    = true;
+    private boolean                       isRecArm;
+    private boolean                       monitor;
+    private boolean                       autoMonitor;
+    private final ISlotBank               slotBank;
+    private int                           depth;
+    private boolean                       recordQuantizationNoteLength;
+    private RecordQuantization            recordQuantization = RecordQuantization.RES_OFF;
+    private final IParameter              crossfadeParameter;
+    private boolean                       isOverdub          = false;
+    private final ParameterBankImpl       parameterBank;
+
+
+    /**
+     * Constructor.
+     *
+     * @param dataSetup Some configuration variables
+     * @param trackBank The track bank for folder navigation
+     * @param index The index of the track in the page
+     * @param numTracks The number of tracks of a bank
+     * @param numSends The number of sends of a bank
+     * @param numScenes The number of scenes of a bank
+     * @param numParams The number of parameters
+     */
+    public TrackImpl (final DataSetupEx dataSetup, final AbstractTrackBankImpl trackBank, final int index, final int numTracks, final int numSends, final int numScenes, final int numParams)
+    {
+        super (dataSetup, index, numSends);
+
+        this.trackBank = trackBank;
+        this.slotBank = new SlotBankImpl (dataSetup, (SceneBankImpl) trackBank.getSceneBank (), this, numScenes);
+        this.crossfadeParameter = new CrossfadeParameter (this.valueChanger, index);
+        this.parameterBank = numParams > 0 ? new ParameterBankImpl (dataSetup, Processor.TRACK, numParams, null) : null;
+    }
+
+
+    /**
+     * Constructor.
+     *
+     * @param dataSetup Some configuration variables
+     * @param trackBank The track bank for folder navigation
+     * @param index The index of the track in the page
+     * @param numTracks The number of tracks of a bank
+     * @param numSends The number of sends of a bank
+     * @param numScenes The number of scenes of a bank
+     * @param numParams The number of parameters
+     * @param volumeParameter The volume parameter
+     * @param panParameter The panning parameter
+     */
+    public TrackImpl (final DataSetupEx dataSetup, final AbstractTrackBankImpl trackBank, final int index, final int numTracks, final int numSends, final int numScenes, final int numParams, final ParameterImpl volumeParameter, final ParameterImpl panParameter)
+    {
+        super (dataSetup, index, numSends, volumeParameter, panParameter);
+
+        this.trackBank = trackBank;
+        this.slotBank = new SlotBankImpl (dataSetup, (SceneBankImpl) trackBank.getSceneBank (), this, numScenes);
+        this.crossfadeParameter = new CrossfadeParameter (this.valueChanger, index);
+        this.parameterBank = numParams > 0 ? new ParameterBankImpl (dataSetup, Processor.TRACK, numParams, null) : null;
+    }
+
+
+    /** {@inheritDoc} */
+    @Override
+    public void enableObservers (final boolean enable)
+    {
+        // Not supported
+    }
+
+
+    /** {@inheritDoc} */
+    @Override
+    public void setName (final String name)
+    {
+        this.sendPositionedItemOSC ("name", name);
+    }
+
+
+    /** {@inheritDoc} */
+    @Override
+    public boolean isSelected ()
+    {
+        final CursorTrackImpl cursorTrack = this.dataSetup.getCursorTrack ();
+        if (cursorTrack.isPinned ())
+            return this == cursorTrack.getPinnedTrack ();
+        return super.isSelected ();
+    }
+
+
+    /** {@inheritDoc} */
+    @Override
+    public boolean isMutedBySolo ()
+    {
+        for (int position = 0; position < this.trackBank.getItemCount (); position++)
+        {
+            final ITrack track = this.trackBank.getUnpagedItem (position);
+            if (track != this && track.isSolo ())
+                return true;
+        }
+        return false;
+    }
+
+
+    /** {@inheritDoc} */
+    @Override
+    public IParameter getCrossfadeParameter ()
+    {
+        return this.crossfadeParameter;
+    }
+
+
+    /** {@inheritDoc} */
+    @Override
+    public void enter ()
+    {
+        // Only group tracks can be entered
+        if (this.trackBank instanceof final TrackBankImpl tbi && this.isGroup ())
+        {
+            // If this track is already the cursor track, enter it straight away
+            if (this.isSelected ())
+            {
+                tbi.enterCurrentFolder ();
+                return;
+            }
+
+            // Make the track cursor track
+            this.select ();
+            // Delay the child selection a bit to ensure the track is selected
+            this.host.scheduleTask (((TrackBankImpl) this.trackBank)::enterCurrentFolder, 100);
+        }
+    }
+
+
+    /** {@inheritDoc} */
+    @Override
+    public boolean isGroup ()
+    {
+        return this.getType () == ChannelType.GROUP;
+    }
+
+
+    /** {@inheritDoc} */
+    @Override
+    public boolean isGroupExpanded ()
+    {
+        return this.isGroupExpanded;
+    }
+
+
+    /**
+     * Set the group expanded state.
+     *
+     * @param isGroupExpanded The group expanded state
+     */
+    public void setIsGroupExpanded (final boolean isGroupExpanded)
+    {
+        this.isGroupExpanded = isGroupExpanded;
+    }
+
+
+    /** {@inheritDoc} */
+    @Override
+    public void setGroupExpanded (final boolean isExpanded)
+    {
+        this.isGroupExpanded = isExpanded;
+        this.sendPositionedItemOSC ("isGroupExpanded", this.isGroupExpanded);
+    }
+
+
+    /** {@inheritDoc} */
+    @Override
+    public void toggleGroupExpanded ()
+    {
+        this.setGroupExpanded (!this.isGroupExpanded);
+    }
+
+
+    /** {@inheritDoc} */
+    @Override
+    public boolean hasParent ()
+    {
+        return this.trackBank.hasParent ();
+    }
+
+
+    /** {@inheritDoc} */
+    @Override
+    public boolean isRecArm ()
+    {
+        return this.doesExist () && this.isRecArm;
+    }
+
+
+    /** {@inheritDoc} */
+    @Override
+    public void setRecArm (final boolean value)
+    {
+        this.setRecArmState (value);
+        this.sendPositionedItemOSC ("recarm", value);
+    }
+
+
+    /** {@inheritDoc} */
+    @Override
+    public void toggleRecArm ()
+    {
+        this.setRecArm (!this.isRecArm ());
+    }
+
+
+    /** {@inheritDoc} */
+    @Override
+    public boolean isMonitor ()
+    {
+        return this.doesExist () && this.monitor;
+    }
+
+
+    /** {@inheritDoc} */
+    @Override
+    public void setMonitor (final boolean value)
+    {
+        this.setMonitorState (value);
+        this.sendPositionedItemOSC ("monitor", this.monitor ? 1 : 0);
+    }
+
+
+    /** {@inheritDoc} */
+    @Override
+    public void toggleMonitor ()
+    {
+        this.setMonitor (!this.monitor);
+    }
+
+
+    /** {@inheritDoc} */
+    @Override
+    public boolean isAutoMonitor ()
+    {
+        return this.doesExist () && this.autoMonitor;
+    }
+
+
+    /** {@inheritDoc} */
+    @Override
+    public boolean canHoldNotes ()
+    {
+        // In Reaper you can throw everything on a track
+        return true;
+    }
+
+
+    /** {@inheritDoc} */
+    @Override
+    public void setAutoMonitor (final boolean value)
+    {
+        this.setAutoMonitorState (value);
+        this.sendPositionedItemOSC ("autoMonitor", this.autoMonitor);
+    }
+
+
+    /** {@inheritDoc} */
+    @Override
+    public void toggleAutoMonitor ()
+    {
+        this.setAutoMonitor (!this.autoMonitor);
+    }
+
+
+    /** {@inheritDoc} */
+    @Override
+    public boolean canHoldAudioData ()
+    {
+        // In Reaper you can throw everything on a track
+        return true;
+    }
+
+
+    /** {@inheritDoc} */
+    @Override
+    public boolean isPlaying ()
+    {
+        // Not supported
+        return false;
+    }
+
+
+    /** {@inheritDoc} */
+    @Override
+    public void select ()
+    {
+        // Note: There is a setting in the Reaper mixer to automatically scroll
+        // to the selected track. Therefore, this function does only select the track.
+
+        if (this.doesExist ())
+            this.sendPositionedItemOSC ("select", 1);
+    }
+
+
+    /** {@inheritDoc} */
+    @Override
+    public void toggleMultiSelect ()
+    {
+        if (this.doesExist ())
+            this.sendPositionedItemOSC ("toggleMultiSelect", 1);
+    }
+
+
+    /**
+     * Set recording arm state.
+     *
+     * @param isRecArm The state
+     */
+    public void setRecArmState (final boolean isRecArm)
+    {
+        this.isRecArm = isRecArm;
+    }
+
+
+    /**
+     * Set recording monitoring state.
+     *
+     * @param monitorState The state
+     */
+    public void setMonitorState (final boolean monitorState)
+    {
+        this.monitor = monitorState;
+    }
+
+
+    /**
+     * Set recording monitoring state.
+     *
+     * @param autoMonitorState The state
+     */
+    public void setAutoMonitorState (final boolean autoMonitorState)
+    {
+        this.autoMonitor = autoMonitorState;
+    }
+
+
+    /** {@inheritDoc} */
+    @Override
+    public void stop (final boolean isAlternative)
+    {
+        // Not supported
+    }
+
+
+    /** {@inheritDoc} */
+    @Override
+    public void returnToArrangement ()
+    {
+        // Not supported
+    }
+
+
+    /** {@inheritDoc} */
+    @Override
+    public boolean isRecordQuantizationNoteLength ()
+    {
+        return this.recordQuantizationNoteLength;
+    }
+
+
+    /** {@inheritDoc} */
+    @Override
+    public void toggleRecordQuantizationNoteLength ()
+    {
+        // Not supported
+    }
+
+
+    /**
+     * Dis-/enable the record quantization length.
+     *
+     * @param isEnabled True to enable
+     */
+    public void setRecordQuantizationNoteLengthState (final boolean isEnabled)
+    {
+        this.recordQuantizationNoteLength = isEnabled;
+    }
+
+
+    /** {@inheritDoc} */
+    @Override
+    public RecordQuantization getRecordQuantizationGrid ()
+    {
+        return this.recordQuantization;
+    }
+
+
+    /** {@inheritDoc} */
+    @Override
+    public void setRecordQuantizationGrid (final RecordQuantization recordQuantization)
+    {
+        this.setRecordQuantizationGridState (recordQuantization);
+        this.sendPositionedItemOSC ("inQuantResolution", QUANT_MAP.get (recordQuantization).doubleValue ());
+    }
+
+
+    /**
+     * Set the record quantization grid resolution. If the resolution is not supported the closest
+     * resolution is selected.
+     *
+     * @param resolutionValue The value to set
+     */
+    public void setRecordQuantizationGrid (final double resolutionValue)
+    {
+        double diff = 1;
+        RecordQuantization result = RecordQuantization.RES_OFF;
+        for (final RecordQuantization rq: RecordQuantization.values ())
+        {
+            final double newDiff = Math.abs (QUANT_MAP.get (rq).doubleValue () - resolutionValue);
+            if (newDiff < diff)
+            {
+                result = rq;
+                diff = newDiff;
+            }
+        }
+        this.setRecordQuantizationGridState (result);
+    }
+
+
+    /**
+     * Set the record quantization grid.
+     *
+     * @param recordQuantization The value to set
+     */
+    public void setRecordQuantizationGridState (final RecordQuantization recordQuantization)
+    {
+        this.recordQuantization = recordQuantization;
+    }
+
+
+    /** {@inheritDoc} */
+    @Override
+    public ISlotBank getSlotBank ()
+    {
+        return this.slotBank;
+    }
+
+
+    /** {@inheritDoc} */
+    @Override
+    public void createClip (final int slotIndex, final int lengthInBeats)
+    {
+        this.sendPositionedItemOSC ("createClip", lengthInBeats);
+    }
+
+
+    /** {@inheritDoc} */
+    @Override
+    public boolean hasDrumDevice ()
+    {
+        // The related method in cursor device always returns true to support sequencers but this
+        // one is used for track info, e.g. displaying a track icon. Therefore, return false.
+        return false;
+    }
+
+
+    /**
+     * Get the track wide parameter bank.
+     *
+     * @return The bank
+     */
+    public IParameterBank getParameterBank ()
+    {
+        return this.parameterBank;
+    }
+
+
+    /**
+     * Start recording a clip on the track at the current play position.
+     */
+    public void recordClip ()
+    {
+        this.sendPositionedItemOSC ("recordClip");
+    }
+
+
+    /**
+     * Set the 'depth' of the track.
+     *
+     * @param depth The level of the track if nested in folders
+     */
+    public void setDepth (final int depth)
+    {
+        this.depth = depth;
+    }
+
+
+    /**
+     * Get the depth of the track.
+     *
+     * @return The depth
+     */
+    public int getDepth ()
+    {
+        return this.depth;
+    }
+
+
+    /**
+     * Set the MIDI overdub state.
+     *
+     * @param isEnabled True if enabled otherwise MIDI overwrite
+     */
+    public void setOverdub (final boolean isEnabled)
+    {
+        this.isOverdub = isEnabled;
+    }
+
+
+    /**
+     * Get the MIDI overdub state.
+     *
+     * @return True if enabled otherwise MIDI overwrite
+     */
+    public boolean isOverdub ()
+    {
+        return this.isOverdub;
+    }
+}

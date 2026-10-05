@@ -1,0 +1,167 @@
+// Written by Jürgen Moßgraber - mossgrabers.de
+// (c) 2017-2026
+// Licensed under LGPLv3 - http://www.gnu.org/licenses/lgpl-3.0.txt
+
+package de.mossgrabers.reaper.framework.daw.data;
+
+import de.mossgrabers.framework.controller.color.ColorEx;
+import de.mossgrabers.framework.daw.data.IScene;
+import de.mossgrabers.reaper.communication.Processor;
+import de.mossgrabers.reaper.framework.daw.DataSetupEx;
+
+
+/**
+ * Encapsulates the data of a scene.
+ *
+ * @author Jürgen Moßgraber
+ */
+public class SceneImpl extends ItemImpl implements IScene
+{
+    private ColorEx color = new ColorEx (0.2, 0.2, 0.2);
+    private double  beginPosition;
+    private double  endPosition;
+
+
+    /**
+     * Constructor.
+     *
+     * @param dataSetup Some configuration variables
+     * @param index The index of the slot
+     */
+    public SceneImpl (final DataSetupEx dataSetup, final int index)
+    {
+        super (dataSetup, index);
+        this.setExists (false);
+    }
+
+
+    /** {@inheritDoc} */
+    @Override
+    public String getName ()
+    {
+        final String name = super.getName ();
+        return this.doesExist () && name != null && name.isBlank () ? "Scene " + (this.getPosition () + 1) : name;
+    }
+
+
+    /** {@inheritDoc} */
+    @Override
+    public void setName (final String name)
+    {
+        this.sendPositionedItemOSC ("name", name);
+    }
+
+
+    /** {@inheritDoc} */
+    @Override
+    public ColorEx getColor ()
+    {
+        return this.color;
+    }
+
+
+    /** {@inheritDoc} */
+    @Override
+    public void setColor (final ColorEx color)
+    {
+        final int [] rgb = color.toIntRGB255 ();
+        this.sendPositionedItemOSC ("color", "RGB(" + rgb[0] + "," + rgb[1] + "," + rgb[2] + ")");
+    }
+
+
+    /**
+     * Set the internal color.
+     *
+     * @param color The internal color
+     */
+    public void setColorState (final ColorEx color)
+    {
+        this.color = color;
+    }
+
+
+    /** {@inheritDoc} */
+    @Override
+    public void launch (final boolean isPressed, final boolean isAlternative)
+    {
+        // No alternative launch available
+        if (isPressed)
+            this.sendPositionedItemOSC ("launch");
+    }
+
+
+    /** {@inheritDoc} */
+    @Override
+    public void remove ()
+    {
+        this.sendPositionedItemOSC ("remove");
+    }
+
+
+    /** {@inheritDoc} */
+    @Override
+    public void select ()
+    {
+        this.sendPositionedItemOSC ("select");
+    }
+
+
+    /** {@inheritDoc} */
+    @Override
+    public void duplicate ()
+    {
+        this.sendPositionedItemOSC ("duplicate");
+    }
+
+
+    /** {@inheritDoc} */
+    @Override
+    protected Processor getProcessor ()
+    {
+        return Processor.SCENE;
+    }
+
+
+    /**
+     * Set the position where the scene starts in the timeline.
+     *
+     * @param beginPosition The position
+     */
+    public void setBeginPosition (final double beginPosition)
+    {
+        this.beginPosition = beginPosition;
+    }
+
+
+    /**
+     * Set the position where the scene ends in the timeline.
+     *
+     * @param endPosition The position
+     */
+    public void setEndPosition (final double endPosition)
+    {
+        this.endPosition = endPosition;
+    }
+
+
+    /**
+     * Get the position where the scene starts in the timeline.
+     *
+     * @return The position
+     */
+    public double getBeginPosition ()
+    {
+        return this.beginPosition;
+    }
+
+
+    /**
+     * Get the position where the scene ends in the timeline.
+     *
+     * @return The position
+     */
+    public double getEndPosition ()
+    {
+        return this.endPosition;
+    }
+}

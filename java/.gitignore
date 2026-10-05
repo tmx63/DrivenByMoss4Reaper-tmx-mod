@@ -1,0 +1,10 @@
+build
+.gradle
+/bin
+/.classpath
+/.project
+/*.config
+.DS_Store
+
+# [tmx] bundled Java runtimes are not needed to build the jar
+/runtime

@@ -1,0 +1,51 @@
+// Written by Jürgen Moßgraber - mossgrabers.de
+// (c) 2017-2026
+// Licensed under LGPLv3 - http://www.gnu.org/licenses/lgpl-3.0.txt
+
+package de.mossgrabers.reaper.controller.novation.launchpad;
+
+import de.mossgrabers.controller.novation.launchpad.LaunchpadConfiguration;
+import de.mossgrabers.controller.novation.launchpad.LaunchpadControllerSetup;
+import de.mossgrabers.controller.novation.launchpad.controller.LaunchpadControlSurface;
+import de.mossgrabers.controller.novation.launchpad.definition.LaunchpadXControllerDefinition;
+import de.mossgrabers.framework.controller.IControllerSetup;
+import de.mossgrabers.reaper.communication.BackendExchange;
+import de.mossgrabers.reaper.controller.AbstractControllerInstance;
+import de.mossgrabers.reaper.framework.IniFiles;
+import de.mossgrabers.reaper.framework.ReaperSetupFactory;
+import de.mossgrabers.reaper.ui.WindowManager;
+import de.mossgrabers.reaper.ui.utils.LogModel;
+
+
+/**
+ * Launchpad X controller instance.
+ *
+ * @author Jürgen Moßgraber
+ */
+public class LaunchpadXControllerInstance extends AbstractControllerInstance<LaunchpadControlSurface, LaunchpadConfiguration>
+{
+    /** The controller definition instance. */
+    public static final LaunchpadXControllerDefinition CONTROLLER_DEFINITION = new LaunchpadXControllerDefinition ();
+
+
+    /**
+     * Constructor.
+     *
+     * @param logModel The logging model
+     * @param windowManager The window manager for the configuration dialog
+     * @param sender The sender
+     * @param iniFiles The INI configuration files
+     */
+    public LaunchpadXControllerInstance (final LogModel logModel, final WindowManager windowManager, final BackendExchange sender, final IniFiles iniFiles)
+    {
+        super (CONTROLLER_DEFINITION, logModel, windowManager, sender, iniFiles);
+    }
+
+
+    /** {@inheritDoc} */
+    @Override
+    protected IControllerSetup<LaunchpadControlSurface, LaunchpadConfiguration> createControllerSetup (final ReaperSetupFactory setupFactory)
+    {
+        return new LaunchpadControllerSetup (this.host, setupFactory, this.globalSettingsUI, this.documentSettingsUI, CONTROLLER_DEFINITION);
+    }
+}
