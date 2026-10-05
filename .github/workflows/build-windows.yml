@@ -1,10 +1,39 @@
-name: Build Windows DLL
+name: Build DLL and Java
 
 on:
   push:
   workflow_dispatch:
 
 jobs:
+  java:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Build jar
+        working-directory: java
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon jar
+
+      - name: Collect jar
+        run: |
+          mkdir -p out-java
+          cp java/build/libs/DrivenByMoss4Reaper-*.jar out-java/
+          echo "Built from commit $GITHUB_SHA on $(date -u)" > out-java/BUILD-INFO.txt
+          ls -la out-java
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: java-jar-${{ github.sha }}
+          path: out-java/
+          if-no-files-found: error
+
   build:
     runs-on: windows-latest
     steps:
@@ -31,6 +60,6 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: reaper_drivenbymoss-${{ github.ref_name }}-${{ github.sha }}
+          name: backend-dll-${{ github.sha }}
           path: out/
           if-no-files-found: error
