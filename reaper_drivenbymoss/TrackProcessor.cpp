@@ -20,7 +20,7 @@
 #endif
 
 // [tmx mod] Set to false to silence the mixer-scroll decision log in the REAPER console
-static const bool MIXER_SCROLL_LOG = false;
+static const bool MIXER_SCROLL_LOG = true;
 
 extern DrivenByMossSurface* surfaceInstance;
 
@@ -784,8 +784,10 @@ namespace
  * @return 1 if fully visible, 0 if (partly) hidden, 2 if the track is not shown in the mixer at all,
  *         -1 if it could not be determined
  */
-int TrackProcessor::IsTrackFullyVisibleInMixer(MediaTrack* track, std::string& info) noexcept
+int TrackProcessor::IsTrackFullyVisibleInMixer(MediaTrack* track, std::string& info, int& areaLeft, int& areaRight) noexcept
 {
+	areaLeft = 0;
+	areaRight = 0;
 #ifdef _WIN32
 	if (GetMediaTrackInfo_Value(track, "B_SHOWINMIXER") == 0)
 	{
@@ -862,6 +864,9 @@ int TrackProcessor::IsTrackFullyVisibleInMixer(MediaTrack* track, std::string& i
 	ss << "strip x=" << trackX << ".." << (trackX + trackW) << ", mixer area x=" << best.left << ".." << best.right << " (" << search.windows.size() << " display(s), master area skipped: " << skipped << ")";
 	info = ss.str();
 
+	areaLeft = best.left;
+	areaRight = best.right;
+
 	// Allow 1 pixel of rounding slack on either side
 	const bool visible = trackX >= best.left - 1 && trackX + trackW <= best.right + 1;
 	return visible ? 1 : 0;
@@ -884,23 +889,48 @@ void TrackProcessor::ScrollTrackIntoViewIfHidden(MediaTrack* track) noexcept
 	ReaProject* project = ReaperUtils::GetProject();
 	Main_OnCommandEx(VERTICAL_SCROLL_TRACK_INTO_VIEW, 0, project);
 
+	const int mode = this->model.mixerScrollMode;
+	const char* decision = "";
 	std::string info;
-	const int visibility = IsTrackFullyVisibleInMixer(track, info);
 
-	const char* decision;
-	if (visibility == 1)
-		decision = "visible -> no scroll";
-	else if (visibility == 2)
-		decision = "not in mixer -> no scroll";
-	else if (visibility == 0)
+	if (mode == 3)
+		decision = "mode 'never' -> no scroll";
+	else if (mode == 0)
 	{
-		decision = "hidden -> snap to left edge";
+		decision = "mode 'always' -> snap to left edge";
 		SetMixerScroll(track);
 	}
 	else
 	{
-		decision = "unknown -> fallback, snap to left edge";
-		SetMixerScroll(track);
+		int areaLeft = 0;
+		int areaRight = 0;
+		const int visibility = IsTrackFullyVisibleInMixer(track, info, areaLeft, areaRight);
+
+		if (visibility == 1)
+			decision = "visible -> no scroll";
+		else if (visibility == 2)
+			decision = "not in mixer -> no scroll";
+		else if (visibility == 0)
+		{
+			MediaTrack* leftmost = track;
+			if (mode == 2)
+			{
+				// Scroll just far enough: if hidden on the right, find the leftmost track which
+				// still keeps the selected one fully visible at the right edge
+				const int trackX = static_cast<int>(GetMediaTrackInfo_Value(track, "I_MCPSCREENX"));
+				if (trackX >= areaLeft)
+					leftmost = FindLeftmostTrackToReveal(project, track, areaLeft, areaRight);
+				decision = "hidden -> scroll just into view";
+			}
+			else
+				decision = "hidden -> snap to left edge";
+			SetMixerScroll(leftmost);
+		}
+		else
+		{
+			decision = "unknown -> fallback, snap to left edge";
+			SetMixerScroll(track);
+		}
 	}
 
 	if (MIXER_SCROLL_LOG)
@@ -910,4 +940,39 @@ void TrackProcessor::ScrollTrackIntoViewIfHidden(MediaTrack* track) noexcept
 		msg << "[DBM mixer] Track " << trackNumber << ": " << decision << "  (" << info << ")\n";
 		ShowConsoleMsg(msg.str().c_str());
 	}
+}
+
+
+/**
+ * Find the track which needs to become the leftmost one in the mixer so that the given track
+ * (currently hidden on the right side) becomes fully visible at the right edge with as little
+ * scrolling as possible.
+ *
+ * @param project The project
+ * @param track The track to reveal
+ * @param areaLeft The left edge of the mixer track area (screen coordinates)
+ * @param areaRight The right edge of the mixer track area (screen coordinates)
+ * @return The track to make the leftmost one, the given track if none is found
+ */
+MediaTrack* TrackProcessor::FindLeftmostTrackToReveal(ReaProject* project, MediaTrack* track, int areaLeft, int areaRight) noexcept
+{
+	const int trackX = static_cast<int>(GetMediaTrackInfo_Value(track, "I_MCPSCREENX"));
+	const int trackW = static_cast<int>(GetMediaTrackInfo_Value(track, "I_MCPW"));
+	// After scrolling, the leftmost strip starts at areaLeft; the selected strip must end
+	// before areaRight. Strips keep their relative positions, so the leftmost strip must
+	// currently start at or right of this threshold.
+	const int threshold = trackX + trackW - (areaRight - areaLeft);
+
+	const int trackIndex = static_cast<int>(GetMediaTrackInfo_Value(track, "IP_TRACKNUMBER")) - 1;
+	for (int i = 0; i < trackIndex; i++)
+	{
+		MediaTrack* candidate = GetTrack(project, i);
+		if (candidate == nullptr || GetMediaTrackInfo_Value(candidate, "B_SHOWINMIXER") == 0)
+			continue;
+		if (static_cast<int>(GetMediaTrackInfo_Value(candidate, "I_MCPW")) <= 0)
+			continue;
+		if (static_cast<int>(GetMediaTrackInfo_Value(candidate, "I_MCPSCREENX")) >= threshold)
+			return candidate;
+	}
+	return track;
 }

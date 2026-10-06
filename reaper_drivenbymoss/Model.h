@@ -42,6 +42,10 @@ public:
 
 	int pinnedTrackIndex{ -1 };
 
+	// [tmx mod] Mixer scroll on track select: 0 = always snap to left edge, 1 = only if hidden:
+	// snap to left edge, 2 = only if hidden: scroll just into view, 3 = never
+	int mixerScrollMode{ 1 };
+
 
 	explicit Model(FunctionExecutor& aFunctionExecutor) noexcept;
 	Model(const Model&) = delete;

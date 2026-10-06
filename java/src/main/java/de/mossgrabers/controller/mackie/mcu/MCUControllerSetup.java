@@ -427,6 +427,9 @@ public class MCUControllerSetup extends AbstractControllerSetup<MCUControlSurfac
             }
         });
 
+        // [tmx mod] Tell the backend how to scroll the mixer on track selection
+        this.configuration.addSettingObserver (MCUConfiguration.MIXER_SCROLL_MODE, () -> this.model.getProject ().setMixerScrollMode (this.configuration.getMixerScrollMode ()));
+
         this.configuration.addSettingObserver (MCUConfiguration.ASSIGNABLE_BUTTONS, () -> {
 
             this.jogWheelCommand.setControlLastParamActive (false);
@@ -784,6 +787,11 @@ public class MCUControllerSetup extends AbstractControllerSetup<MCUControlSurfac
             surface.getViewManager ().setActive (Views.CONTROL);
             surface.getModeManager ().setActive (this.configuration.getStartupMode ());
         }
+
+        // [tmx mod] Send the mixer scroll mode once the backend is surely up (and again a bit
+        // later to be safe)
+        this.host.scheduleTask ( () -> this.model.getProject ().setMixerScrollMode (this.configuration.getMixerScrollMode ()), 1000);
+        this.host.scheduleTask ( () -> this.model.getProject ().setMixerScrollMode (this.configuration.getMixerScrollMode ()), 5000);
     }
 
 

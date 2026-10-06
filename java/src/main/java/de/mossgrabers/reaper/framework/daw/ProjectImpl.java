@@ -319,6 +319,15 @@ public class ProjectImpl extends BaseImpl implements IProject
 
     /** {@inheritDoc} */
     @Override
+    public void setMixerScrollMode (final int mode)
+    {
+        // [tmx mod]
+        this.sendOSC ("mixerScrollMode", mode);
+    }
+
+
+    /** {@inheritDoc} */
+    @Override
     public IParameterBank getParameterBank ()
     {
         return this.parameterBank;

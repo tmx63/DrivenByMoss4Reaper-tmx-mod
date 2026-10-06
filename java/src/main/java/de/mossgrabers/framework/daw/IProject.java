@@ -231,4 +231,15 @@ public interface IProject extends IObserverManagement
      * @return The bank
      */
     IParameterBank getParameterBank ();
+
+
+    /**
+     * [tmx mod] Set how the mixer scrolls when a track is selected. Not supported by all hosts.
+     *
+     * @param mode The mode index
+     */
+    default void setMixerScrollMode (final int mode)
+    {
+        // Not supported by default
+    }
 }

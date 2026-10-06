@@ -159,6 +159,17 @@ public class MCUConfiguration extends AbstractConfiguration
     public static final Integer       X_TOUCH_DISPLAY_COLORS                = Integer.valueOf (NEXT_SETTING_ID + 17);
     /** A button/foot-switch assignment has changed. */
     public static final Integer       ASSIGNABLE_BUTTONS                    = Integer.valueOf (NEXT_SETTING_ID + 18);
+    /** [tmx mod] How the Reaper mixer scrolls when a track is selected from the controller. */
+    public static final Integer       MIXER_SCROLL_MODE                     = Integer.valueOf (NEXT_SETTING_ID + 50);
+
+    /** [tmx mod] Options for the mixer scroll setting (index is sent to the backend). */
+    public static final String []     MIXER_SCROLL_OPTIONS                  =
+    {
+        "Always snap to left edge (original)",
+        "Only if hidden: snap to left edge",
+        "Only if hidden: scroll just into view",
+        "Never scroll the mixer"
+    };
 
     /** Use a Function button to switch to previous mode. */
     public static final int           FOOTSWITCH_PREV_MODE                  = 15;
@@ -191,6 +202,9 @@ public class MCUConfiguration extends AbstractConfiguration
     private static final String       CATEGORY_SEGMENT_DISPLAY              = "Segment Display";
     private static final String       CATEGORY_TRACKS                       = "Tracks (requires restart)";
     private static final String       CATEGORY_ASSIGNABLE_BUTTONS           = "Assignable buttons";
+    private static final String       CATEGORY_REAPER_MIXER                 = "Reaper Mixer (tmx mod)";
+
+    private int                       mixerScrollMode                       = 1;
 
     private static final String       DEVICE_SELECT                         = "<Select a profile>";
     private static final String       DEVICE_ASPARION_D700                  = "Asparion D700";
@@ -452,6 +466,27 @@ public class MCUConfiguration extends AbstractConfiguration
         this.activateChannelTouchSetting (globalSettings);
         this.activateKnobSpeedSetting (globalSettings);
         this.activateEncoderKnobSpeedSetting (globalSettings);
+
+        // ----------------------------------------------------------------
+        // [tmx mod] Reaper mixer
+
+        final IEnumSetting mixerScrollSetting = globalSettings.getEnumSetting ("Scroll mixer on track select", CATEGORY_REAPER_MIXER, MIXER_SCROLL_OPTIONS, MIXER_SCROLL_OPTIONS[1]);
+        mixerScrollSetting.addValueObserver (value -> {
+            this.mixerScrollMode = Math.max (0, lookupIndex (MIXER_SCROLL_OPTIONS, value));
+            this.notifyObservers (MIXER_SCROLL_MODE);
+        });
+        this.isSettingActive.add (MIXER_SCROLL_MODE);
+    }
+
+
+    /**
+     * [tmx mod] Get the mixer scroll mode.
+     *
+     * @return 0 = always snap, 1 = only if hidden: snap, 2 = only if hidden: just into view, 3 = never
+     */
+    public int getMixerScrollMode ()
+    {
+        return this.mixerScrollMode;
     }
 
 

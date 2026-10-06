@@ -52,6 +52,13 @@ void ProjectProcessor::Process(std::deque<std::string>& path, int value)
 
 	const char* cmd = SafeGet(path, 0);
 
+	// [tmx mod] How to scroll the mixer when a track is selected
+	if (std::strcmp(cmd, "mixerScrollMode") == 0)
+	{
+		this->model.mixerScrollMode = value < 0 || value > 3 ? 1 : value;
+		return;
+	}
+
 	if (std::strcmp(cmd, "engine") == 0)
 	{
 		if (value > 0)

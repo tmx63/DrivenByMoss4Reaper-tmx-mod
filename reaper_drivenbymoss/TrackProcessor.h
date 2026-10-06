@@ -27,7 +27,8 @@ private:
 
 	void ScrollTrackIntoView(MediaTrack* leftmosttrack) noexcept;
 	void ScrollTrackIntoViewIfHidden(MediaTrack* track) noexcept;
-	int IsTrackFullyVisibleInMixer(MediaTrack* track, std::string& info) noexcept;
+	int IsTrackFullyVisibleInMixer(MediaTrack* track, std::string& info, int& areaLeft, int& areaRight) noexcept;
+	MediaTrack* FindLeftmostTrackToReveal(ReaProject* project, MediaTrack* track, int areaLeft, int areaRight) noexcept;
 	void SetColorOfTrack(ReaProject* project, MediaTrack* track, const std::string& value) noexcept;
 	void SetIsActivated(ReaProject* project, bool enable) noexcept;
 	void DeleteAllAutomationEnvelopes(ReaProject* project, MediaTrack* track) noexcept;
