@@ -1,5 +1,7 @@
 # DrivenByMoss4Reaper — tmx mod (unofficial)
 
+Configurable Reaper mixer scrolling when selecting off-screen tracks from a Mackie/MCU controller.
+
 Unofficial modified build of [DrivenByMoss4Reaper](https://www.mossgrabers.de/Software/Reaper/Reaper.html)
 by Jürgen Moßgraber (LGPLv3). Not supported by the original author.
 
