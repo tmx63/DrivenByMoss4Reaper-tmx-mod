@@ -48,6 +48,8 @@ public class ApplicationImpl extends BaseImpl implements IApplication
     private boolean                canRedoState  = true;
     // [tmx mod] Toggle states of actions requested via isActionActive (action ID -> on)
     private final Map<String, Boolean> actionStates = new ConcurrentHashMap<> ();
+    // [tmx mod] Pending watch requests (action ID -> time of last request)
+    private final Map<String, Long>    actionRequests = new ConcurrentHashMap<> ();
     private final ZoomParameter    horizontalZoomParameter;
     private final ZoomParameter    verticalZoomParameter;
 
@@ -521,8 +523,16 @@ public class ApplicationImpl extends BaseImpl implements IApplication
         final Boolean state = this.actionStates.get (actionID);
         if (state != null)
             return state.booleanValue ();
-        this.actionStates.put (actionID, Boolean.FALSE);
-        this.sendOSC ("watch", actionID);
+
+        // No state received yet: (re-)send the request every 2 seconds until the backend answers
+        // (the first request can get lost if it is sent before the backend is ready)
+        final long now = System.currentTimeMillis ();
+        final Long lastRequest = this.actionRequests.get (actionID);
+        if (lastRequest == null || now - lastRequest.longValue () > 2000)
+        {
+            this.actionRequests.put (actionID, Long.valueOf (now));
+            this.sendOSC ("watch", actionID);
+        }
         return false;
     }
 

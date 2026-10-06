@@ -9,6 +9,9 @@
 #include "ReaperUtils.h"
 #include "Collectors.h"
 
+// [tmx mod] Set to false to silence the action-state log in the REAPER console
+static const bool ACTION_STATE_LOG = true;
+
 
 /**
  * Constructor.
@@ -60,6 +63,15 @@ void ActionProcessor::Process(std::deque<std::string>& path, const std::string& 
 		// (Re-)registering forces the current state to be sent again
 		if (this->watchedActions.size() < 256 || this->watchedActions.count(value) > 0)
 			this->watchedActions[value] = -2;
+		if (ACTION_STATE_LOG)
+		{
+			int id = std::atoi(value.c_str());
+			if (id <= 0)
+				id = NamedCommandLookup(value.c_str());
+			std::ostringstream msg;
+			msg << "[DBM action] watch request: " << value << " (command ID " << id << ")\n";
+			ShowConsoleMsg(msg.str().c_str());
+		}
 		return;
 	}
 
@@ -84,6 +96,12 @@ void ActionProcessor::CollectData(std::ostringstream& ss)
 		if (id <= 0)
 			id = NamedCommandLookup(entry.first.c_str());
 		const int state = id > 0 ? GetToggleCommandStateEx(0, id) : -1;
+		if (ACTION_STATE_LOG && state != entry.second)
+		{
+			std::ostringstream msg;
+			msg << "[DBM action] state sent: " << entry.first << " = " << state << "\n";
+			ShowConsoleMsg(msg.str().c_str());
+		}
 		entry.second = Collectors::CollectIntValue(ss, "/action/state/" + entry.first, entry.second, state, false);
 	}
 
