@@ -135,12 +135,6 @@ public class AssignableCommand extends FootswitchCommand<MCUControlSurface, MCUC
                 if (event != ButtonEvent.DOWN)
                     return;
                 final String assignableActionID = configuration.getAssignableAction (this.index);
-                // [tmx mod] Diagnostic: an action named LEDPROBE starts/stops the LED probe
-                if (assignableActionID != null && "LEDPROBE".equalsIgnoreCase (assignableActionID.trim ()))
-                {
-                    toggleLedProbe (this.surface);
-                    return;
-                }
                 if (assignableActionID != null)
                     this.model.getApplication ().invokeAction (assignableActionID);
                 break;
@@ -211,11 +205,6 @@ public class AssignableCommand extends FootswitchCommand<MCUControlSurface, MCUC
             case MCUConfiguration.CONTROL_LAST_PARAM_MASTER_FADER:
                 return this.masterVolumeMode.isControlLastParamActive ();
 
-            // [tmx mod] Light the button if the assigned Reaper action is toggled on
-            case MCUConfiguration.FOOTSWITCH_ACTION:
-                final String assignableActionID = this.surface.getConfiguration ().getAssignableAction (this.index);
-                return assignableActionID != null && this.model.getApplication ().isActionActive (assignableActionID);
-
             case AbstractConfiguration.FOOTSWITCH_UNDO:
             case AbstractConfiguration.FOOTSWITCH_TAP_TEMPO:
             case AbstractConfiguration.FOOTSWITCH_NEW_BUTTON:
@@ -231,92 +220,6 @@ public class AssignableCommand extends FootswitchCommand<MCUControlSurface, MCUC
             case MCUConfiguration.NEXT_CHANNEL:
             default:
                 return false;
-        }
-    }
-
-
-    // ---------------------------------------------------------------------------------------
-    // [tmx mod] LED probe: lights every note (and CC) address on the controller one after the
-    // other and shows the current address on the display, to find out which messages light a
-    // specific button. Press the LEDPROBE button again to stop.
-    // ---------------------------------------------------------------------------------------
-
-    private static volatile Thread ledProbeThread;
-
-
-    private static synchronized void toggleLedProbe (final MCUControlSurface surface)
-    {
-        final Thread running = ledProbeThread;
-        if (running != null && running.isAlive ())
-        {
-            running.interrupt ();
-            return;
-        }
-        final Thread thread = new Thread ( () -> runLedProbe (surface), "LED probe");
-        thread.setDaemon (true);
-        ledProbeThread = thread;
-        thread.start ();
-    }
-
-
-    private static void runLedProbe (final MCUControlSurface surface)
-    {
-        final de.mossgrabers.framework.daw.midi.IMidiOutput output = surface.getMidiOutput ();
-        try
-        {
-            // Pass 1: all notes on MIDI channel 1
-            for (int note = 0; note < 128; note++)
-            {
-                probeNotify (surface, "LED probe: NOTE " + note);
-                output.sendNoteEx (0, note, 127);
-                Thread.sleep (600);
-                output.sendNoteEx (0, note, 0);
-            }
-
-            // Pass 2: the F1-F8 notes on MIDI channels 2-16
-            for (int channel = 1; channel < 16; channel++)
-            {
-                probeNotify (surface, "LED probe: F-NOTES on CHANNEL " + (channel + 1));
-                for (int note = 0x36; note <= 0x3D; note++)
-                    output.sendNoteEx (channel, note, 127);
-                Thread.sleep (1500);
-                for (int note = 0x36; note <= 0x3D; note++)
-                    output.sendNoteEx (channel, note, 0);
-            }
-
-            // Pass 3: all CCs on MIDI channel 1
-            for (int cc = 0; cc < 128; cc++)
-            {
-                probeNotify (surface, "LED probe: CC " + cc);
-                output.sendCCEx (0, cc, 127);
-                Thread.sleep (300);
-                output.sendCCEx (0, cc, 0);
-            }
-
-            probeNotify (surface, "LED probe: DONE");
-        }
-        catch (final InterruptedException ex)
-        {
-            probeNotify (surface, "LED probe: STOPPED");
-            Thread.currentThread ().interrupt ();
-        }
-        finally
-        {
-            // Restore all lights and displays to their normal state
-            surface.forceFlush ();
-        }
-    }
-
-
-    private static void probeNotify (final MCUControlSurface surface, final String message)
-    {
-        try
-        {
-            surface.getDisplay ().notify (message);
-        }
-        catch (final RuntimeException ex)
-        {
-            // Display is only a convenience, ignore
         }
     }
 }
