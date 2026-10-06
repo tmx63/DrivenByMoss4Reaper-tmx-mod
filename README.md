@@ -5,7 +5,7 @@ Configurable Reaper mixer scrolling when selecting off-screen tracks from a Mack
 Unofficial modified build of [DrivenByMoss4Reaper](https://www.mossgrabers.de/Software/Reaper/Reaper.html)
 by Jürgen Moßgraber (LGPLv3). Not supported by the original author.
 
-Current version: **26.6.5-tmx2** (based on DrivenByMoss 26.6.5)
+Current version: **26.6.5-tmx3** (based on DrivenByMoss 26.6.5)
 
 ## Changes
 - **Mixer scroll on track select** (Mackie/MCU controllers): new setting
@@ -14,6 +14,7 @@ Current version: **26.6.5-tmx2** (based on DrivenByMoss 26.6.5)
   - Only if hidden: snap to left edge (default)
   - Only if hidden: scroll just into view
   - Never scroll the mixer
+- Fixed typo in the control surface description ("lot's" -> "lots").
 - Build identification: window title, jar name, control surface description and
   DLL properties show the tmx version.
 

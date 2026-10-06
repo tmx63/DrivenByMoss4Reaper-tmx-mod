@@ -65,7 +65,7 @@ const char* DrivenByMossSurface::GetTypeString() noexcept
 
 const char* DrivenByMossSurface::GetDescString() noexcept
 {
-	return "DrivenByMoss4Reaper - Supports lot's of surfaces... " TMX_MOD_LABEL;
+	return "DrivenByMoss4Reaper - Supports lots of surfaces... " TMX_MOD_LABEL;
 }
 
 

@@ -4,7 +4,7 @@
 #ifndef _DBM_TMXVERSION_H_
 #define _DBM_TMXVERSION_H_
 
-#define TMX_VERSION_STR "26.6.5-tmx2"
-#define TMX_MOD_LABEL   "[tmx mod 2]"
+#define TMX_VERSION_STR "26.6.5-tmx3"
+#define TMX_MOD_LABEL   "[tmx mod 3]"
 
 #endif /* _DBM_TMXVERSION_H_ */
