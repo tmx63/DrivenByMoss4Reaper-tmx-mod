@@ -21,7 +21,7 @@ All changes are marked `[tmx mod]` in the source.
 - `reaper_drivenbymoss/`, `CMake/` … C++ backend (`reaper_drivenbymoss.dll`), from
   [DrivenByMoss4Reaper-Backend](https://github.com/git-moss/DrivenByMoss4Reaper-Backend)
 - `java/` … Java part (`DrivenByMoss4Reaper-<version>.jar`), from DrivenByMoss4Reaper
-- `.github/workflows/` … GitHub builds both on every push; download from the Actions run's artifacts.
+- `.github/workflows/` … GitHub builds both on every push. Pushing a version tag (e.g. `v26.6.5-tmx2`) publishes a Release with both files — download from the Releases page.
 
 ## Install (Windows)
 Close Reaper. Replace `UserPlugins\reaper_drivenbymoss.dll` and put the jar into
