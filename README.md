@@ -2,6 +2,15 @@
 
 Configurable Reaper mixer scrolling when selecting off-screen tracks from a Mackie/MCU controller.
 
+> [!NOTE]
+> **Personal project, provided as-is.** I made this mod for my own setup
+> (Reaper on Windows 10 with an iCON QCon Pro X in Mackie mode) and am sharing
+> it in case it helps someone else. It is **not** affiliated with or supported
+> by Jürgen Moßgraber / DrivenByMoss — please don't send questions about this
+> mod to him. Updates are not guaranteed; it may lag behind official
+> DrivenByMoss releases. Use at your own risk, and keep a backup of your
+> original files.
+
 Unofficial modified build of [DrivenByMoss4Reaper](https://www.mossgrabers.de/Software/Reaper/Reaper.html)
 by Jürgen Moßgraber (LGPLv3). Not supported by the original author.
 
