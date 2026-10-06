@@ -20,7 +20,7 @@
 #endif
 
 // [tmx mod] Set to false to silence the mixer-scroll decision log in the REAPER console
-static const bool MIXER_SCROLL_LOG = true;
+static const bool MIXER_SCROLL_LOG = false;
 
 extern DrivenByMossSurface* surfaceInstance;
 

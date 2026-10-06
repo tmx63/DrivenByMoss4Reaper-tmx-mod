@@ -17,7 +17,7 @@ if(APPLE)
 endif()
 
 # [tmx mod] 4th number = tmx build number (see reaper_drivenbymoss/TmxVersion.h)
-project(reaper_drivenbymoss VERSION 26.6.5.1 LANGUAGES CXX)
+project(reaper_drivenbymoss VERSION 26.6.5.2 LANGUAGES CXX)
 
 string(REPLACE "." "," VER_VERSION "${PROJECT_VERSION}")
 string(TIMESTAMP VER_YEAR "%Y" UTC)
