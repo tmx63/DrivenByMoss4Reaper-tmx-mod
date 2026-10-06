@@ -11,7 +11,8 @@ java {
     targetCompatibility = JavaVersion.VERSION_21
 }
 
-version = '26.6.5'
+// [tmx mod] Version tag of this modified build (bump with every change)
+version = '26.6.5-tmx1'
 
 jar {
     manifest {

@@ -1,6 +1,7 @@
 // Microsoft Visual C++ generated resource script.
 //
 #include "resource.h"
+#include "TmxVersion.h"
 
 #define APSTUDIO_READONLY_SYMBOLS
 /////////////////////////////////////////////////////////////////////////////
@@ -48,13 +49,13 @@ BEGIN
         BLOCK "000904b0"
         BEGIN
             VALUE "CompanyName", "MOSS"
-            VALUE "FileDescription", "DrivenByMoss"
-            VALUE "FileVersion", VER_VERSION_STR
+            VALUE "FileDescription", "DrivenByMoss " TMX_MOD_LABEL
+            VALUE "FileVersion", TMX_VERSION_STR
             VALUE "InternalName", "res.rc"
             VALUE "LegalCopyright", "Copyright (c) " VER_YEAR
             VALUE "OriginalFilename", "res.rc"
-            VALUE "ProductName", "DrivenByMoss"
-            VALUE "ProductVersion", VER_VERSION_STR
+            VALUE "ProductName", "DrivenByMoss " TMX_MOD_LABEL
+            VALUE "ProductVersion", TMX_VERSION_STR
         END
     END
     BLOCK "VarFileInfo"

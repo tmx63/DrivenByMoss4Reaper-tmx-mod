@@ -4,6 +4,7 @@
 
 #include "ReaDebug.h"
 #include "DrivenByMossSurface.h"
+#include "TmxVersion.h"
 
 // Singleton, deleted from Reaper
 DrivenByMossSurface* surfaceInstance = nullptr;
@@ -64,7 +65,7 @@ const char* DrivenByMossSurface::GetTypeString() noexcept
 
 const char* DrivenByMossSurface::GetDescString() noexcept
 {
-	return "DrivenByMoss4Reaper - Supports lot's of surfaces...";
+	return "DrivenByMoss4Reaper - Supports lot's of surfaces... " TMX_MOD_LABEL;
 }
 
 

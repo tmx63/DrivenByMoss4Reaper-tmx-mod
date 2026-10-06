@@ -16,7 +16,8 @@ if(APPLE)
     set(CMAKE_POSITION_INDEPENDENT_CODE FALSE)
 endif()
 
-project(reaper_drivenbymoss VERSION 26.6.2.0 LANGUAGES CXX)
+# [tmx mod] 4th number = tmx build number (see reaper_drivenbymoss/TmxVersion.h)
+project(reaper_drivenbymoss VERSION 26.6.5.1 LANGUAGES CXX)
 
 string(REPLACE "." "," VER_VERSION "${PROJECT_VERSION}")
 string(TIMESTAMP VER_YEAR "%Y" UTC)
@@ -174,6 +175,7 @@ set(Header_Files
     "../reaper_drivenbymoss/Track.h"
     "../reaper_drivenbymoss/TrackProcessor.h"
     "../reaper_drivenbymoss/TransportProcessor.h"
+    "../reaper_drivenbymoss/TmxVersion.h"
     "../reaper_drivenbymoss/WrapperGSL.h"
     "../reaper_drivenbymoss/WrapperJNI.h"
     "../reaper_drivenbymoss/WrapperReaperFunctions.h"

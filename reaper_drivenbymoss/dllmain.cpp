@@ -19,6 +19,7 @@
 
 #include "CodeAnalysis.h"
 #include "DrivenByMossSurface.h"
+#include "TmxVersion.h"
 #include "LocalMidiEventDispatcher.h"
 #include "MidiProcessingStructures.h"
 #include "ReaDebug.h"
@@ -794,7 +795,8 @@ static HWND configFunc(const char* type_string, HWND parent, const char* initCon
 static reaper_csurf_reg_t drivenbymoss_reg =
 {
 	"DrivenByMoss4Reaper",
-	"DrivenByMoss4Reaper",
+	// [tmx mod] Only the display name is tagged; the type ID above must stay unchanged
+	"DrivenByMoss4Reaper " TMX_MOD_LABEL,
 	createFunc,
 	configFunc,
 };
